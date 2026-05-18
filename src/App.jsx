@@ -1,16 +1,16 @@
-import React from 'react'
-import Loading from './components/Loading'
 import Preloader from './components/Preloader'
 import Navbar from "./components/Navbar"
+import AppRouter from './Router/AppRouter'
+import Footer from './pages/Footer'
 
 function App() {
   return (
    <>
-      <Preloader>
+      <Preloader/>
         <Navbar />
-        <AppRouter articles={articles} />
+        <AppRouter />
         <Footer />
-      </Preloader>
+      
 
    </>
   )

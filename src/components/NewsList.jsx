@@ -1,4 +1,3 @@
-import React from 'react'
 import NewsCard from './NewsCard';
 import Loading from './Loading';
 

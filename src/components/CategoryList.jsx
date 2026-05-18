@@ -1,4 +1,3 @@
-import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 
 const Categories = [
@@ -18,7 +17,8 @@ function CategoryList() {
     <div>
         {Categories.map((cat)=>(
             <button key={cat.value}
-            onClick={()=> navigate(cat.value? '/category/${cat.value}':"/")}
+            type="button"
+            onClick={()=> navigate(cat.value ? `/category/${cat.value}` : "/")}
             aria-pressed = {category === cat.value}>
                 
                 {cat.label}</button>

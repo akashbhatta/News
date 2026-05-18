@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-function SearchBar() {
+function SearchBar({ onSearch }) {
     const [input, setInput] = useState("");
 
     useEffect(()=>{
         const timer = setTimeout(()=>{
             if (input.trim()) onSearch(input.trim());
         },500);
-        return () => clearInterval(timer);
-    },[input]);
+        return () => clearTimeout(timer);
+    },[input, onSearch]);
   return (
     <div role='search'>
         <input
@@ -19,7 +19,7 @@ function SearchBar() {
         placeholder='Search news...'
         />
     {input && (
-        <button onClick={()=>{setInput(""); onSearch("")}}>x</button>
+        <button type="button" onClick={()=>{setInput(""); onSearch("")}}>x</button>
     )}
     </div>
   )

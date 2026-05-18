@@ -1,9 +1,7 @@
-import React from "react";
-
 const Footer = () => {
   return (
     <footer>
-      <p>© 2025 NewsApp. Powered by NewsAPI.</p>
+      <p>Copyright 2026 NewsApp. Powered by live news APIs.</p>
     </footer>
   );
 };
