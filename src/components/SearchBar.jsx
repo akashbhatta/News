@@ -1,0 +1,28 @@
+import React, { useEffect, useState } from 'react'
+
+function SearchBar() {
+    const [input, setInput] = useState("");
+
+    useEffect(()=>{
+        const timer = setTimeout(()=>{
+            if (input.trim()) onSearch(input.trim());
+        },500);
+        return () => clearInterval(timer);
+    },[input]);
+  return (
+    <div role='search'>
+        <input
+        type='text'
+        value={input}
+        onChange={(e)=>setInput(e.target.value)}
+        onKeyDown={(e)=>e.key === "Enter" && onSearch(input.trim())}
+        placeholder='Search news...'
+        />
+    {input && (
+        <button onClick={()=>{setInput(""); onSearch("")}}>x</button>
+    )}
+    </div>
+  )
+}
+
+export default SearchBar
