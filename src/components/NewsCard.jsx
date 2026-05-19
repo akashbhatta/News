@@ -58,4 +58,3 @@ const NewsCard = ({ article }) => {
 };
 
 export default NewsCard;
-1

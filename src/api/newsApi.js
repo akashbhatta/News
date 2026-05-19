@@ -2,6 +2,17 @@ import axios from "axios";
 
 const NEWS_API_URL = "https://newsapi.org/v2";
 const NEWSDATA_API_URL = "https://newsdata.io/api/1/latest";
+const REDDIT_LIMIT = 25;
+
+const CATEGORY_SUBREDDITS = {
+  business: "business",
+  entertainment: "entertainment",
+  general: "news",
+  health: "health",
+  science: "science",
+  sports: "sports",
+  technology: "technology",
+};
 
 const fallbackArticles = [
   {
@@ -44,6 +55,12 @@ const fallbackArticles = [
 
 const getApiKey = () => import.meta.env.VITE_NEWS_API_KEY?.trim();
 
+const isValidArticle = (article) =>
+  article?.title &&
+  article.title !== "[Removed]" &&
+  article.url &&
+  article.description !== "[Removed]";
+
 const normalizeNewsDataArticle = (article) => ({
   title: article.title,
   description: article.description || article.content,
@@ -54,79 +71,121 @@ const normalizeNewsDataArticle = (article) => ({
   source: { name: article.source_name || "NewsData" },
 });
 
-const isValidArticle = (article) =>
-  article?.title &&
-  article.title !== "[Removed]" &&
-  article.title !== "[Removed}" &&
-  article.url;
+const normalizeRedditArticle = (post) => {
+  const data = post.data;
+  const previewImage = data.preview?.images?.[0]?.source?.url?.replaceAll("&amp;", "&");
+  const thumbnail = data.thumbnail?.startsWith("http") ? data.thumbnail : "";
+
+  return {
+    title: data.title,
+    description: data.selftext || data.subreddit_name_prefixed,
+    content: data.selftext,
+    url: data.url_overridden_by_dest || `https://www.reddit.com${data.permalink}`,
+    urlToImage: previewImage || thumbnail,
+    publishedAt: new Date(data.created_utc * 1000).toISOString(),
+    source: { name: data.subreddit_name_prefixed || "Reddit News" },
+  };
+};
+
+async function fetchPublicNews({ category, query, page, pageSize }) {
+  const subreddit = CATEGORY_SUBREDDITS[category] || "news";
+  const limit = Math.max(REDDIT_LIMIT, page * pageSize);
+  const url = query.trim()
+    ? `https://www.reddit.com/r/${subreddit}/search.json`
+    : `https://www.reddit.com/r/${subreddit}/hot.json`;
+  const params = query.trim()
+    ? { q: query.trim(), restrict_sr: 1, sort: "new", limit }
+    : { limit };
+
+  const { data } = await axios.get(url, { params });
+  const articles = (data.data?.children || [])
+    .filter((post) => post.kind === "t3")
+    .map(normalizeRedditArticle)
+    .filter(isValidArticle);
+  const start = (page - 1) * pageSize;
+
+  return {
+    articles: articles.slice(start, start + pageSize),
+    totalResults: articles.length,
+    warning: "Showing public news feed. Add VITE_NEWS_API_KEY for NewsAPI/NewsData headlines.",
+  };
+}
+
+async function fetchNewsData({ apiKey, category, query, pageSize }) {
+  const params = {
+    apikey: apiKey,
+    language: "en",
+    size: pageSize,
+    ...(query.trim() && { q: query.trim() }),
+    ...(category && { category }),
+  };
+
+  const { data } = await axios.get(NEWSDATA_API_URL, { params });
+  const articles = (data.results || []).map(normalizeNewsDataArticle).filter(isValidArticle);
+
+  return {
+    articles,
+    totalResults: data.totalResults || articles.length,
+    warning: articles.length ? "" : "No articles found.",
+  };
+}
+
+async function fetchNewsApi({ apiKey, category, query, page, pageSize }) {
+  const hasQuery = Boolean(query.trim());
+  const endpoint = hasQuery ? `${NEWS_API_URL}/everything` : `${NEWS_API_URL}/top-headlines`;
+  const params = hasQuery
+    ? {
+        q: query.trim(),
+        language: "en",
+        sortBy: "publishedAt",
+        page,
+        pageSize,
+        apiKey,
+      }
+    : {
+        country: "us",
+        page,
+        pageSize,
+        apiKey,
+        ...(category && { category }),
+      };
+
+  const { data } = await axios.get(endpoint, { params });
+  const articles = (data.articles || []).filter(isValidArticle);
+
+  return {
+    articles,
+    totalResults: data.totalResults || articles.length,
+    warning: articles.length ? "" : "No articles found.",
+  };
+}
 
 export async function fetchNews({ category = "", query = "", page = 1, pageSize = 10 }) {
   const apiKey = getApiKey();
 
-  if (!apiKey) {
-    return {
-      articles: fallbackArticles,
-      totalResults: fallbackArticles.length,
-      warning: "Missing VITE_NEWS_API_KEY. Showing sample headlines.",
-    };
-  }
-
   try {
-    if (apiKey.startsWith("pub_")) {
-      const params = {
-        apikey: apiKey,
-        language: "en",
-        size: pageSize,
-        ...(query.trim() && { q: query.trim() }),
-        ...(category && { category }),
-      };
-
-      const { data } = await axios.get(NEWSDATA_API_URL, { params });
-      const articles = (data.results || [])
-        .map(normalizeNewsDataArticle)
-        .filter(isValidArticle);
-
-      return {
-        articles,
-        totalResults: articles.length,
-        warning: articles.length ? "" : "No articles found.",
-      };
+    if (!apiKey) {
+      return await fetchPublicNews({ category, query, page, pageSize });
     }
 
-    const endpoint = query.trim()
-      ? `${NEWS_API_URL}/everything`
-      : `${NEWS_API_URL}/top-headlines`;
-    const params = query.trim()
-      ? {
-          q: query.trim(),
-          language: "en",
-          sortBy: "publishedAt",
-          pageSize,
-          page,
-          apiKey,
-        }
-      : {
-          country: "us",
-          pageSize,
-          page,
-          apiKey,
-          ...(category && { category }),
-        };
+    if (apiKey.startsWith("pub_")) {
+      return await fetchNewsData({ apiKey, category, query, pageSize });
+    }
 
-    const { data } = await axios.get(endpoint, { params });
-    const articles = (data.articles || []).filter(isValidArticle);
-
-    return {
-      articles,
-      totalResults: data.totalResults || articles.length,
-      warning: articles.length ? "" : "No articles found.",
-    };
+    return await fetchNewsApi({ apiKey, category, query, page, pageSize });
   } catch (error) {
-    console.error("News API error:", error);
-    return {
-      articles: fallbackArticles,
-      totalResults: fallbackArticles.length,
-      warning: "Live news could not be loaded. Showing sample headlines.",
-    };
+    console.error("News fetch error:", error);
+
+    try {
+      return await fetchPublicNews({ category, query, page, pageSize });
+    } catch (fallbackError) {
+      console.error("Public news fetch error:", fallbackError);
+
+      return {
+        articles: fallbackArticles,
+        totalResults: fallbackArticles.length,
+        warning: "Live news could not be loaded. Showing sample headlines.",
+      };
+    }
   }
 }
