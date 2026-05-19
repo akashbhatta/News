@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import Hero from './Hero';
 import CategoryList from '../components/CategoryList'
 import NewsList from '../components/NewsList';
-import SearchBar from "../components/SearchBar" 
 import { fetchNews as fetchNewsFromApi } from '../api/newsApi';
 
 
 function HomePage() {
 
   const {category = ""} = useParams();
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get("q") || "";
   const [articles, setArticles] = useState([]);
   const [totalResults, setTotalResults] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   
   const PAGE_SIZE = 10;
@@ -45,11 +45,6 @@ function HomePage() {
     }
   }, [category, query, page]);
 
-  const handleSearch = useCallback((value) => {
-    setQuery(value);
-    setPage(1);
-  }, []);
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNews();
@@ -58,33 +53,51 @@ function HomePage() {
   useEffect(()=>{
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
-    setQuery("");
-  },[category]);
+  },[category, query]);
 
   return (
     <div>
       <Hero/>
-      <SearchBar onSearch={handleSearch}/>
-      <CategoryList/>
-
-      <p>
-        Showing {articles.length} of {totalResults.toLocaleString()} articles
-        {category && ` in ${category}`}
-      </p>
-
-      <NewsList articles={articles} loading={loading} error={error}/>
-
-      {maxPage > 1 && (
-        <div>
-          <button onClick={() => setPage(page - 1)} disabled={page === 1}>
-            Prev
-          </button>
-          <span>Page {page} of {maxPage}</span>
-          <button onClick={() => setPage(page + 1)} disabled={page >= maxPage}>
-            Next
-          </button>
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <CategoryList/>
         </div>
-      )}
+
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-950">
+              {category ? `${category.charAt(0).toUpperCase() + category.slice(1)} headlines` : "Top headlines"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Showing {articles.length} of {totalResults.toLocaleString()} articles
+            </p>
+          </div>
+        </div>
+
+        <NewsList articles={articles} loading={loading} error={error}/>
+
+        {maxPage > 1 && (
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+              Page {page} of {maxPage}
+            </span>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page >= maxPage}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

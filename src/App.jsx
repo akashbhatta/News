@@ -5,14 +5,14 @@ import Footer from './pages/Footer'
 
 function App() {
   return (
-   <>
+   <div className="min-h-screen text-slate-950">
       <Preloader/>
-        <Navbar />
+      <Navbar />
+      <main>
         <AppRouter />
-        <Footer />
-      
-
-   </>
+      </main>
+      <Footer />
+   </div>
   )
 }
 

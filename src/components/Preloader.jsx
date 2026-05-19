@@ -8,6 +8,15 @@ export default function Preloader({ children = null }) {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!ready) return <p>Please Wait..</p>;
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950 text-white">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-white" />
+          <p className="text-sm font-semibold tracking-wide">Loading NewsApp</p>
+        </div>
+      </div>
+    );
+  }
   return children;
 }

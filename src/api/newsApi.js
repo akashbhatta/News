@@ -3,6 +3,14 @@ import axios from "axios";
 const NEWS_API_URL = "https://newsapi.org/v2";
 const NEWSDATA_API_URL = "https://newsdata.io/api/1/latest";
 const REDDIT_LIMIT = 25;
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
+];
 
 const CATEGORY_SUBREDDITS = {
   business: "business",
@@ -61,6 +69,17 @@ const isValidArticle = (article) =>
   article.url &&
   article.description !== "[Removed]";
 
+const getFallbackImage = (seed = "") => {
+  const hash = Array.from(seed).reduce((total, char) => total + char.charCodeAt(0), 0);
+  return FALLBACK_IMAGES[hash % FALLBACK_IMAGES.length];
+};
+
+const withArticleImages = (articles) =>
+  articles.map((article, index) => ({
+    ...article,
+    urlToImage: article.urlToImage || getFallbackImage(`${article.title}-${article.url}-${index}`),
+  }));
+
 const normalizeNewsDataArticle = (article) => ({
   title: article.title,
   description: article.description || article.content,
@@ -98,16 +117,16 @@ async function fetchPublicNews({ category, query, page, pageSize }) {
     : { limit };
 
   const { data } = await axios.get(url, { params });
-  const articles = (data.data?.children || [])
+  const articles = withArticleImages((data.data?.children || [])
     .filter((post) => post.kind === "t3")
     .map(normalizeRedditArticle)
-    .filter(isValidArticle);
+    .filter(isValidArticle));
   const start = (page - 1) * pageSize;
 
   return {
     articles: articles.slice(start, start + pageSize),
     totalResults: articles.length,
-    warning: "Showing public news feed. Add VITE_NEWS_API_KEY for NewsAPI/NewsData headlines.",
+    warning: "",
   };
 }
 
@@ -121,7 +140,7 @@ async function fetchNewsData({ apiKey, category, query, pageSize }) {
   };
 
   const { data } = await axios.get(NEWSDATA_API_URL, { params });
-  const articles = (data.results || []).map(normalizeNewsDataArticle).filter(isValidArticle);
+  const articles = withArticleImages((data.results || []).map(normalizeNewsDataArticle).filter(isValidArticle));
 
   return {
     articles,
@@ -151,7 +170,7 @@ async function fetchNewsApi({ apiKey, category, query, page, pageSize }) {
       };
 
   const { data } = await axios.get(endpoint, { params });
-  const articles = (data.articles || []).filter(isValidArticle);
+  const articles = withArticleImages((data.articles || []).filter(isValidArticle));
 
   return {
     articles,
